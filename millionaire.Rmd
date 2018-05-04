@@ -1,0 +1,89 @@
+---
+title: "MILLIONAIRE SCHEME"
+output:
+  html_notebook:
+    highlight: espresso
+    number_sections: no
+    theme: yeti
+  pdf_document:
+  html_document:
+    df_print: paged
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, echo=F, message=F}
+library(RODBC)
+library(plyr)
+library(dplyr)
+library(openxlsx)
+library(ggplot2)
+library(DT)
+library(pander)
+library(FinCal)
+library(knitr)
+library(kableExtra)
+panderOptions('digits', 2)
+options(scipen=999, digits=2)
+```
+### The CODE
+The code block is still a bit messy, wait till I feel like fixing it.
+```{r,echo=T, warning=FALSE, message=FALSE}
+mat <- function(Tenure,
+                fixed,
+                rate1,
+                rate2,
+                comp1,
+                comp2,
+                final_val) {
+                Int.Per_Payment2 <-
+                (1 + rate2 / comp2) ^ (comp2 / 12) -
+                1
+                fvf <-
+                -fv(Int.Per_Payment2, Tenure * 12, pv = fixed, type = 1)
+                rem <- final_val - fvf
+                Int.Per_Payment <-
+                (1 + rate1 / comp1) ^ (comp1 / 12) -
+                1
+                pm <- -pmt(
+                Int.Per_Payment,
+                Tenure * 12,
+                pv = 0,
+                fv = rem,
+                type = 1
+                )
+                final <-
+                fvf + fv.annuity(Int.Per_Payment, Tenure * 12, -pm, type = 1)
+                dd <- data.frame(fvf, pm, final)
+                return(pm)
+                }
+                
+Amount <- c(0, 100000, 200000, 300000, 400000, 500000)
+Maturity <- c(1:10)
+
+foo <- matrix(nrow = length(Amount), ncol = length(Maturity))
+for (i in 1:length(Amount)) {
+  for (j in 1:length(Maturity)) {
+    foo[i, j] <-
+      mat(Maturity[j], Amount[i], .0775, .0775, 1, 1, 1000000)
+  }
+}
+foo <- as.data.frame(foo)
+colnames(foo) <- paste(Maturity, "Y")
+foo$Primary_Deposit <- Amount
+foo <- foo[, c(ncol(foo), 1:((ncol(foo) - 1)))]
+fou <- foo
+foo <- as.data.frame(sapply(foo, function(x)
+  ceiling(x)))
+foo <- as.data.frame(sapply(foo, function(x)
+  ifelse(x >= 0, x, 0)))
+
+names(foo) <- names(fou)
+
+```
+### The Summary Table
+```{r echo=FALSE, message=T, warning=T, paged.print=T, results='asis'}
+foo[,1:ncol(foo)]<-sapply(foo[,1:ncol(foo)], function(x) format(x, nsmall=2, big.mark = ","))
+
+knitr::kable(foo, format="html", align='r', caption="Maturity & Primary Deposit Wise Installment Size", row.names=T) %>% kable_styling(bootstrap_options = c("striped", "hover", "responsive"))
+```

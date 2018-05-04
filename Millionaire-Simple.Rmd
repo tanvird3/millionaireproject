@@ -1,0 +1,79 @@
+---
+title: "MILLIONAIRE SIMPLE"
+output:
+  html_notebook:
+    highlight: espresso
+    number_sections: no
+    theme: yeti
+  pdf_document:
+  html_document:
+    df_print: paged
+editor_options: 
+  chunk_output_type: inline
+---
+
+  
+```{r setup, echo=F, message=F}
+library(RODBC)
+library(plyr)
+library(dplyr)
+library(openxlsx)
+library(ggplot2)
+library(DT)
+library(pander)
+library(FinCal)
+library(knitr)
+library(kableExtra)
+panderOptions('digits', 2)
+options(scipen=999, digits=2)
+```  
+
+```{r,echo=T, warning=FALSE, message=FALSE}
+id <- c(50000, 100000, 200000, 300000)
+
+int <- .09
+
+y <- c(2, 3, 5, 7)
+
+target <- 1000000
+
+milsim <- function(id, y, int, target) {
+  # for initial deposit
+  # fv=pv+pv*i*n
+  id.fv <- id + id * int * y
+  
+  rd.target <- target - id.fv
+  
+  # for recurring deposit
+  # fv=(R+R*i*n) + (R+R*i*(n-1))+ (R+R*i*(n-2))+ .....+ (R+R*i*1)
+  # fv=n*R+ iR ( n+(n*1)+(n*2)+.....+1)
+  # fv=n*R+ iR * n(n+1)/2
+  # fv= R {n+i* n(n+1)/2}
+  # R= fv/ {n+i*n(n+1)/2}
+  
+  # so instalment size
+  inst <- rd.target / ((y * 12 + int / 12 * (y * 12) * (y * 12 + 1) / 2))
+}
+
+foo <- matrix(nrow = length(id), ncol = length(y))
+for (i in 1:length(id)) {
+  for (j in 1:length(y)) {
+    foo[i, j] <-
+      milsim(id[i], y[j], int, target)
+  }
+}
+
+foo <- data.frame(foo)
+
+foo$Initial_Deposit<-id
+
+foo<-foo[,c(ncol(foo),(1:(ncol(foo)-1)))]
+
+row.names(foo) <- 1:nrow(foo)
+colnames(foo) <- c("Initial Deposit",paste(y,"Y"))
+```
+### The Summary Table
+```{r,echo=F, warning=F, message=F, results='asis'}
+foo[,1:ncol(foo)]<-sapply(foo[,1:ncol(foo)], function(x) format(x, nsmall=2, big.mark = ","))
+kable(foo, format="markdown", align='r', caption="Maturity & Primary Deposit Wise Installment Size", row.names=T) %>% kable_styling(bootstrap_options = c("striped", "hover", "responsive"))
+```
